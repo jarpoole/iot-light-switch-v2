@@ -1,5 +1,5 @@
 
-	echo "No build configured"
+echo "No build configured"
 
 save:
 	git add *
