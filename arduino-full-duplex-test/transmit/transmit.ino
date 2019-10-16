@@ -25,8 +25,8 @@ void loop()
     */
 
     
-    const uint8_t data[4] = {0xFC, 0x45, 0xE5, 0x11};
-    driver.send(&data[0], 4);
+    const uint8_t data[1] = {0x40};
+    driver.send(&data[0], 1);
     driver.waitPacketSent();
     delay(1000);
     Serial.println("Sent");
