@@ -1,4 +1,7 @@
-#include <Servo.h>
+#include <PWMServo.h>
+#include <RH_ASK.h>
+#include <SPI.h> // Not actually used but needed to compile RH_ASK
+
 #include "Constants.h"
 
 #define BUTTON 3         //PD3, INT1
@@ -26,11 +29,18 @@
 #define OFFPOSITION 115
 #define OVERSHOOT 30
 
-Servo servo;
+
+//From documentation: RH_ASK (uint16_t speed=2000, uint8_t rxPin=11, uint8_t txPin=12, uint8_t pttPin=10, bool pttInverted=false)
+//pttPin = -1 will disable push to talk functionality
+RH_ASK driver(2000, RECEIVER, TRANSMITTER, -1, false);
+
+PWMServo servo;
+
 volatile long lastButtonPressedTime = 0;
 volatile bool lastButtonState = false;
 
 volatile bool switchOn = false;
+volatile bool debugOn = false;
 
 
 //ISR Toggles
@@ -60,6 +70,12 @@ void setup() {
   attachInterrupt(BMS_INTERRUPT, bmsISR, RISING);
 
   servo.attach(SERVO);
+
+  bool ask_init = driver.init();
+  if(debugOn && !ask_init){
+    Serial.println("RH_ASK init failed");
+  }
+  
 }
 
 void loop() {
@@ -124,9 +140,9 @@ void toggleSwitch(){
 
 void turnOn(){
   digitalWrite(SERVO_ENABLE, HIGH);
-  servo.writeMicroseconds(ONPOSITION - OVERSHOOT);
+  servo.write(ONPOSITION - OVERSHOOT);
   delay(100);
-  servo.writeMicroseconds(ONPOSITION);
+  servo.write(ONPOSITION);
   delay(1000);
   digitalWrite(SERVO_ENABLE, LOW);
 
@@ -135,9 +151,9 @@ void turnOn(){
 
 void turnOff(){
   digitalWrite(SERVO_ENABLE, HIGH);
-  servo.writeMicroseconds(OFFPOSITION + OVERSHOOT);
+  servo.write(OFFPOSITION + OVERSHOOT);
   delay(100);
-  servo.writeMicroseconds(OFFPOSITION);
+  servo.write(OFFPOSITION);
   delay(1000);
   digitalWrite(SERVO_ENABLE, LOW);
 
@@ -148,4 +164,27 @@ void enableSerial(){
   digitalWrite(SERIAL_ENABLE, HIGH);
   Serial.begin(SERIAL_BAUD);
   Serial.println("Serial enabled");
+  debugOn = true;
+}
+
+//RH_ASK wrapper functions
+byte receiveByte(){ //blocking
+    uint8_t buf[1];
+    uint8_t buflen = sizeof(buf);
+    while(!driver.recv(buf, &buflen)){    // Non-blocking  
+      if(debugOn){
+        Serial.print(".");
+      }
+      delay(100);
+    }
+    if(debugOn){
+      Serial.print("\n");
+    }
+    return(buf[0]); 
+}
+
+void transmitByte(byte data){
+    driver.send(&data, 1);
+    driver.waitPacketSent();
+    delay(1000);
 }
