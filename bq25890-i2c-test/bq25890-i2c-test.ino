@@ -18,7 +18,7 @@ void setup() {
 
   //Wire.beginTransmission(BMS_ADDRESS << 1 | WRITE_MASK);
   Wire.beginTransmission(BMS_ADDRESS);
-  Wire.write(0x03); //Select Register with boost control (REG03)
+  Wire.write(0x03);                  //Select Register with boost control (REG03)
   Wire.write(0b00111010);    //Change bit D5 to on to set OTG_CONFIG (Rest are defaulted)
   Wire.endTransmission();
 
@@ -46,7 +46,31 @@ byte readRegister(byte address){
   
   return(Wire.read());
 }
+void writeRegister(byte address, byte value){
+  Wire.beginTransmission(BMS_ADDRESS);
+  Wire.write(address);
+  Wire.write(value);
+  Wire.endTransmission();
+}
 
+void writeRegisterBit(byte address, int pos, bool value){
+  byte currentData = readRegister(address);         //Read the current state
+  currentData = bitWrite(currentData, pos, value);  //Change the specified bit
+  writeRegister(address, currentData);              //Write the changes
+}
+
+
+void setOTG_CONFIG(bool value){
+  writeRegisterBit(0x03, 5, value);
+}
+void setCHG_CONFIG(bool value){
+  writeRegisterBit(0x03, 4, value);
+}
+void setSTAT_DIS(bool value){
+  writeRegisterBit(0x07, 6, value);
+}
+
+//**********************************Print methods**********************************************//
 void printREG0B(){
   byte data = readRegister(0x0B);
   Serial.println();
