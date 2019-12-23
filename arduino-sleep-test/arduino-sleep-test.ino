@@ -11,46 +11,64 @@
  */
 
 #include <avr/sleep.h>
+#include <avr/power.h>
+#include <avr/wdt.h>
+
 
 void setup() {
-  // put your setup code here, to run once:
-
+  pinMode(13, OUTPUT);
+  Serial.begin(115200);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  
+  for(int i = 0; i < 5; i++){
+      digitalWrite(13, HIGH);
+      delay(500);
+      digitalWrite(13, LOW);
+      delay(500);
+  }
+
+  sleep();
 
 }
 
-ADCSRA &= ~bit(ADEN); //Disable ADC
-  MCUSR = 0; //Clear reset flags
+// Interrupt triggered on Timer2 overflow
+ISR(TIMER2_COMPA_vect){
 
-  set_sleep_mode(SLEEP_MODE_PWR_SAVE); //Set sleep mode
-  noInterrupts(); //Disable interrupts
-  sleep_enable(); //Enable sleep
-
-  //Disable BOD
-  MCUCR = bit(BODS) | bit(BODSE);
-  MCUCR = bit(BODS);
- 
-  interrupts(); //Enable interrupts
-  sleep_cpu(); //Go to sleep
-  sleep_disable(); //Disable sleep mode after wakeup
 }
-
 void sleep(){
-  
-  
-  ADCSRA = 0;  // disable ADC
 
+  //Disable timer2 interrupts
+  TIMSK2  = 0;
+  //Enable asynchronous mode
+  ASSR  = (1<<AS2);
+  //set initial counter value
+  TCNT2=0;
+  //set prescaller 128
+  TCCR2B |= (1<<CS22)|(1<<CS00);
+  //wait for registers update
+  while (ASSR & ((1<<TCN2UB)|(1<<TCR2BUB)));
+  //clear interrupt flags
+  TIFR2  = (1<<TOV2);
+  //enable TOV2 interrupt
+  TIMSK2  = (1<<TOIE2);
+
+  /*
+  ASSR = (1<<AS2);                        // Make Timer2 asynchronous using Asynchronous Status Register
+  TCCR2A = (1<<WGM21);                    // CTC mode
+  TCCR2B = (1<<CS22)|(1<<CS21)|(1<<CS20); // Prescaler of 1024
+  OCR2A = 239;                            // Count up to 240 (zero relative!)
+  TIMSK2 = (1<<OCIE2A);                   // Enable compare match interrupt
+  */
+  
+  //ADCSRA = 0;  // disable ADC
+  // Disable unneeded peripherals
+  power_adc_disable(); // Disable Analog to digital converter
+  //power_twi_disable(); // Disable I2C
   
   MCUSR = 0;   // clear various "reset" flags 
-  
-  // allow changes, disable reset
-  WDTCSR = bit (WDCE) | bit (WDE);
-  // set interrupt mode and an interval 
-  WDTCSR = bit (WDIE) | bit (WDP3) | bit (WDP0);    // set WDIE, and 8 seconds delay
-  wdt_reset();  // pat the dog
+  wdt_disable();
   
   set_sleep_mode (SLEEP_MODE_PWR_SAVE);  
   noInterrupts ();           // timed sequence follows

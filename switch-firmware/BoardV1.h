@@ -19,6 +19,8 @@
 //Servo Constants
 #define SERVO 9          //PB1
 #define SERVO_ENABLE 8   //PB0
-#define ONPOSITION 75 
-#define OFFPOSITION 115
-#define OVERSHOOT 30
+#define ONPOSITION 75  //Confirmed
+#define OFFPOSITION 120//115
+#define OVERSHOOT 10   //30
+#define OVERSHOOT_TIME 100
+#define MOVE_TIME 200

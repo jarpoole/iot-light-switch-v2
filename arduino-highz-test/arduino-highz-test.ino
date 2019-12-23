@@ -12,10 +12,10 @@ void setup() {
 }
 
 void loop() {
-  delay(1000);
-  currentSinkPin(PIN, true);
-  delay(1000);
-  currentSinkPin(PIN, false);
+  //delay(1000);
+  //currentSinkPin(PIN, true);
+  //delay(1000);
+  //currentSinkPin(PIN, false);
 }
 
 void currentSinkPin(int pin, bool value){
