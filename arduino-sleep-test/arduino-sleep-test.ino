@@ -18,6 +18,14 @@
 void setup() {
   pinMode(13, OUTPUT);
   Serial.begin(115200);
+
+  //Insure watchdog is disabled
+  __disable_interrupt();
+  __watchdog_reset();
+  MCUSR &= ~(1<<WDRF);             /* Clear WDRF in MCUSR */
+  WDTCSR |= (1<<WDCE) | (1<<WDE);  /* Write logical one to WDCE and WDE and Keep old prescaler setting to prevent unintentional time-out*/
+  WDTCSR = 0x00;                   /* Turn off WDT */
+  __enable_interrupt();
 }
 
 void loop() {
