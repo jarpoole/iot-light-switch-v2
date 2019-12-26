@@ -3,8 +3,9 @@
 #define NULL            0x00
 #define ACK             0x01
 #define WAKE_UP         0x02
-#define SLEEP		0x03
+#define SLEEP		        0x03
 #define NO_CHANGE       0x04
+#define NEXT_COMMAND    0x05
 
 //Switch Control
 #define SWITCH_ON       0x10

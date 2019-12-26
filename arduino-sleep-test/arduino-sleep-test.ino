@@ -69,10 +69,13 @@ void sleep(){
   OCR2A = 239;                            // Count up to 240 (zero relative!)
   TIMSK2 = (1<<OCIE2A);                   // Enable compare match interrupt
   */
-  
-  //ADCSRA = 0;  // disable ADC
+
   // Disable unneeded peripherals
-  power_adc_disable(); // Disable Analog to digital converter
+  ADCSRA &= 0b01111111;   // disable the ADC by writing the ADEN bit (bit7) to 0
+  ACSR = 0b10000000;      //disable the analog comparator by writing the ACD bit (bit7) to 1
+  //power_adc_disable();
+  
+  
   //power_twi_disable(); // Disable I2C
   
   MCUSR = 0;   // clear various "reset" flags 

@@ -7,9 +7,8 @@
 #include <avr/wdt.h>
 
 //Prepare LED pin
-void PortInit(void)
-{
-    //Initlally LEDs OFF
+void PortInit(void){
+    //Initially LEDs OFF
     PORTD &= ~((1<<PD0) | (1<<PD1));
     //PD0 as output
     DDRD |= (1<<PD0);
@@ -27,7 +26,7 @@ void RTCInit(void)
     TCNT2=0;
     //set OCR2B to 255, This value should set the frequency of the interrupts
     OCR2B = 0b11111111;
-    //set prescaller 128
+    //set prescaller 1024
     TCCR2B |= (1<<CS22) | (1<<CS21) | (1<<CS20);
     //wait for registers TCN2UB, OCR2BUB and TCR2BUB to update by checking status is ASSR
     while ( (1<<TCN2UB)&ASSR | (1<<TCR2BUB)&ASSR | (1<<TCR2BUB)&ASSR);
