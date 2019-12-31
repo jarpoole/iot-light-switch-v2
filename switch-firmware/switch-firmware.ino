@@ -7,10 +7,18 @@
 #include <avr/sleep.h>
 #include <avr/wdt.h>
 
-//External libraries
-#include <PWMServo.h>
-#include <RH_ASK.h>
-#include <SPI.h> // Not actually used but needed to compile RH_ASK
+//Modified RadioHead library
+#include "./radiohead-ask-atmega328p/RadioHead.h"
+#include "./radiohead-ask-atmega328p/RH_ASK.h"
+#include "./radiohead-ask-atmega328p/RH_ASK.cpp"
+#include "./radiohead-ask-atmega328p/RHCRC.h"
+#include "./radiohead-ask-atmega328p/RHCRC.cpp"
+#include "./radiohead-ask-atmega328p/RHGenericDriver.cpp"
+#include "./radiohead-ask-atmega328p/RHGenericDriver.h"
+
+#include "./pwmservo-atmega328p/PWMServo.h"
+#include "./pwmservo-atmega328p/PWMServo.cpp"
+//#include <SPI.h> // Not actually used but needed to compile RH_ASK
 #include <Wire.h>
 
 //User files
@@ -53,7 +61,6 @@ int main (void){
       more = processASKCommands(receiveASKByte()); //Wait for command (Blocking)
     }
     sleep();
-
   }
 }
 
