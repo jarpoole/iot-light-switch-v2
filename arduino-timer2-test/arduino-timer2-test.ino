@@ -9,11 +9,15 @@
 //Prepare LED pin
 void PortInit(void){
     //Initially LEDs OFF
-    PORTD &= ~((1<<PD0) | (1<<PD1));
+    //PORTD &= ~((1<<PD0) | (1<<PD1));
+    PORTB &= ~(1<<PB2);
+    
     //PD0 as output
-    DDRD |= (1<<PD0);
+    //DDRD |= (1<<PD0);
+    DDRB |= (1<<PB2);
+    
     //PD1 as output
-    DDRD |= (1<<PD1);
+    //DDRD |= (1<<PD1);
 }
 //Timer2 init acording datasheet
 void RTCInit(void)
@@ -38,7 +42,8 @@ void RTCInit(void)
 //Timer 2 compare B ISR
 ISR(TIMER2_COMPB_vect)
 {
-    PORTD |= (1<<PD1);
+    //PORTD |= (1<<PD1);
+    PORTB |= (1<<PB2);
     asm volatile("nop"::);
 }
 int main (void)
@@ -60,13 +65,21 @@ int main (void)
     {
         //do work
         wdt_reset();
+
+        /*
         for(int i = 0; i < 3; i++){
           PORTD |= (1<<PD0);
           _delay_ms(250);
           PORTD &= ~(1<<PD0);
           _delay_ms(250);
         }
-        PORTD &= ~(1<<PD1); //Turn off awake led
+        */
+        _delay_ms(1000);
+        
+        //PORTD &= ~(1<<PD1); //Turn off awake led
+        PORTB &= ~(1<<PB2); //Turn off awake led
+
+        
         TCNT2=0; //RESET timer 2
         SMCR|=(1<<SE); //Set "Sleep Mode Control Register" Sleep Enable, SE, Bit = 1, p38
         sleep_cpu();   //Issue sleep instruction. This cannot be done by setting a register

@@ -9,7 +9,10 @@
 #define TRANSMITTER 5
 #define RECEIVER 6
 
+#ifdef F_CPU
+#undef F_CPU
 #define F_CPU 8000000UL
+#endif
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -32,6 +35,7 @@ void setup()
     
     //Initialise the timer2
     RTCInit();
+    
     //Enable global interrupts
     sei();
 }
@@ -41,14 +45,12 @@ void loop()
     wdt_reset();
 
     if(!driver.init()){
-      PORTD |= (1<<PD0);
+       PORTD |= (1<<PD0);
     }
-    transmitByte(0x8A);
-    _delay_ms(500);
+    //_delay_ms(500);
+    transmitByte(0x40);
+    //_delay_ms(500);
     
-  
-    
-
     /*
     for(int i = 0; i < 3; i++){
        PORTD |= (1<<PD0);
@@ -57,6 +59,7 @@ void loop()
        _delay_ms(250);
      }
      */
+
     
     //Sleep
     RTCInit();
@@ -71,6 +74,7 @@ void loop()
 
         
     SMCR &= ~(1<<SE); //Disable sleep enable after wakeup
+    
 }
 
 byte receiveByte() //blocking
