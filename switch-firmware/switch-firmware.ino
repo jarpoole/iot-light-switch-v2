@@ -1,7 +1,6 @@
-#ifdef F_CPU
-#undef F_CPU
-#define F_CPU 8000000UL
-#endif
+//User files
+#include "Constants.h"
+#include "BoardV2.h"
 
 //System libraries
 #include <avr/io.h>
@@ -9,6 +8,7 @@
 #include <util/delay.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <avr/pgmspace.h>
 
 //Modified RadioHead library
 #include "./radiohead-ask-atmega328p/RadioHead.h"
@@ -21,12 +21,7 @@
 
 #include "./pwmservo-atmega328p/PWMServo.h"
 #include "./pwmservo-atmega328p/PWMServo.cpp"
-//#include <SPI.h> // Not actually used but needed to compile RH_ASK
 #include <Wire.h>
-
-//User files
-#include "Constants.h"
-#include "BoardV2.h"
 
 //From documentation: RH_ASK (uint16_t speed=2000, uint8_t rxPin=11, uint8_t txPin=12, uint8_t pttPin=10, bool pttInverted=false)
 //pttPin = -1 will disable push to talk functionality
@@ -49,6 +44,15 @@ volatile bool requestSerialOn = false;
 volatile bool requestSerialOff = false;
 
 int main (void){
+   serialBegin();
+    
+   while(1){
+       //serialWriteChar('A');
+       serialWriteString(F("Hello\n"));
+       _delay_ms(1000);
+   }
+  
+  /*
   initialize();
 
   pinMode(BUZZER, OUTPUT);
@@ -60,6 +64,8 @@ int main (void){
     //delay(5000);
     sleep();
   }
+  */
+  
   
   /*
   while(true){
@@ -251,7 +257,7 @@ void turnOff(){
   switchOn = false;
 }
 void enableSerial(){
-  Serial.begin(SERIAL_BAUD);
+  //Serial.begin(SERIAL_BAUD);
   Serial.println(F("Serial enabled"));
   debugOn = true;
 }
@@ -270,6 +276,37 @@ void beep(int num, int timeMillis){
         }
     }
 }
+
+//*********************************Serial functions************************************************//
+unsigned char serialCheckRxComplete(void){
+  return( UCSR0A & _BV(RXC0)) ;         // nonzero if serial data is available to read.
+}
+unsigned char serialCheckTxReady(void){
+  return( UCSR0A & _BV(UDRE0) ) ;       // nonzero if transmit register is ready to receive new data.
+}
+unsigned char serialReadChar(void){
+  while (serialCheckRxComplete() == 0); // While data is NOT available to read
+  return UDR0;
+}
+void serialWriteChar(unsigned char DataOut){
+  while (serialCheckTxReady() == 0);   // while NOT ready to transmit
+  UDR0 = DataOut;
+}
+void serialWriteString(const char* string){
+  const char* ptr = string;
+  while(*ptr != 0){
+    serialWriteChar(*ptr);
+    ptr++;
+  }
+}
+void serialBegin(){
+  UBRR0H = (unsigned char)(CALC_UBRR>>8); //Set baud rate
+  UBRR0L = (unsigned char) CALC_UBRR;     //Set baud rate
+  UCSR0B = (1<<RXEN0)|(1<<TXEN0); //Enable receiver and transmitter
+  UCSR0C = (3<<UCSZ00);           // Frame format: 8data, No parity, 1stop bit
+  UCSR0A |= _BV(U2X0); //Enable USE_2X (Jared added this)
+}
+
 
 //*********************************RH_ASK wrapper functions****************************************//
 bool processASKCommand(byte command){

@@ -5,9 +5,13 @@
 
 
 void setup() {
-    DDRD |= (1<<PD7);
 
-    PORTD &= ~(1<<PD7);
+    /*
+    DDRD |= (1<<PD7);   //Output
+    PORTD &= ~(1<<PD7); //Sink current to turn on led
+    */
+
+    DDRD &= ~(1<<PD7);  //Input
     
 
 }

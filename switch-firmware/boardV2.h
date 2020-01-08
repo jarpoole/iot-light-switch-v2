@@ -1,3 +1,8 @@
+#ifdef F_CPU
+#undef F_CPU
+#define F_CPU 8000000UL
+#endif
+
 #define BUTTON 3         //PD3, INT1
 #define LED 7            //PD7
 #define BUZZER 10        //PB2
@@ -6,7 +11,8 @@
 #define VAR_RESISTOR A7  //PE3, ADC7
 
 //Serial Constants
-#define SERIAL_BAUD 9600
+#define BaudRate 9600
+#define CALC_UBRR (F_CPU / 8 / BaudRate ) - 1
 
 //BMS Constants
 #define BMS_ADDRESS 0x6A
