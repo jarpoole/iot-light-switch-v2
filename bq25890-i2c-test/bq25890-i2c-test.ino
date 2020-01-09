@@ -1,3 +1,8 @@
+#ifdef F_CPU
+#undef F_CPU
+#define F_CPU 8000000UL
+#endif
+
 #define BUZZER 13        //PB5
 
 #include <Wire.h>

@@ -43,28 +43,23 @@ volatile bool requestSwitchOff = false;
 volatile bool requestSerialOn = false;
 volatile bool requestSerialOff = false;
 
+const static char NEWLINE[] PROGMEM = "\n";
+
 int main (void){
-   serialBegin();
-    
-   while(1){
-       //serialWriteChar('A');
-       serialWriteString(F("Hello\n"));
-       _delay_ms(1000);
-   }
+   
   
-  /*
   initialize();
 
-  pinMode(BUZZER, OUTPUT);
+  //pinMode(BUZZER, OUTPUT);
   //beep(1,1000);
   
   while(true){
-    beep(1,1000);
-    Serial.println("1");
-    //delay(5000);
-    sleep();
+    beep(1,10);
+    serialWriteString("1");
+    _delay_ms(1000);
+    //sleep();
   }
-  */
+  
   
   
   /*
@@ -111,41 +106,38 @@ void initialize() {
   pinMode(SERVO_ENABLE, OUTPUT);
   digitalWrite(SERVO_ENABLE, LOW);
 
-  
  
   //***************************Initialize Radio***************************//
   pinMode(TRANSMITTER, OUTPUT);
   pinMode(RECEIVER, INPUT);
+  ask_driver.init();
 
- 
-  //ask_driver.init();
-  /*
-  bool ask_init = ask_driver.init();
-  if(debugOn && !ask_init){
-    Serial.println("RH_ASK init failed");
-  }
-  */
+  
   
   //***************************Initialize BMS***************************//
-  /*
+  
   Wire.begin();
   pinMode(BMS_INTERRUPT,INPUT);
   attachInterrupt(digitalPinToInterrupt(BMS_INTERRUPT), bmsISR, RISING);
   pinMode(BMS_OTG, OUTPUT);
   digitalWrite(BMS_OTG, HIGH);        //*********************FIX ME (OTG shouldn't be on by default)**********************
+
   
-  setOTG_CONFIG(true);    //enable boost mode
-  setCHG_CONFIG(false);   //Disable charging
-  setCONV_RATE(true);     //enable continuous ADC for testing
-  enableWatchdog(false);  //Disable watchdog
+  //setOTG_CONFIG(true);    //enable boost mode
+  //setCHG_CONFIG(false);   //Disable charging
+  //setCONV_RATE(true);     //enable continuous ADC for testing
+  //enableWatchdog(false);  //Disable watchdog
   writeRegister(0x0A, 0x77); //Set BOOST_LIM value to 111 = 2.45A
+ 
+  
 
   initializeTimer2Sleep();
   SMCR|=(1<<SM1)|(1<<SM0); //Set sleep mode control register to PowerSave Mode (Bits SM2 SM1 SM0 = 011 , p38)
   sei();   //Enable global interrupts
 
   //setSTAT_DIS(true);
-  */
+  
+
 }
 
 void initializeTimer2Sleep(){
@@ -256,14 +248,16 @@ void turnOff(){
   servo.detach();
   switchOn = false;
 }
+const static char Enable_Serial_Message [] PROGMEM = "Serial enabled";
 void enableSerial(){
-  //Serial.begin(SERIAL_BAUD);
-  Serial.println(F("Serial enabled"));
+  serialBegin();
+  serialWriteProgString(Enable_Serial_Message);
   debugOn = true;
 }
+const static char Disable_Serial_Message [] PROGMEM = "Goodbye";
 void disableSerial(){
-  Serial.println(F("Goodbye"));
-  Serial.end();
+  serialWriteProgString(Disable_Serial_Message);
+  //Serial.end();
   debugOn = false;
 }
 void beep(int num, int timeMillis){
@@ -275,6 +269,22 @@ void beep(int num, int timeMillis){
             _delay_ms(timeMillis*2);
         }
     }
+}
+
+//*********************************Conversion functions************************************************//
+char outputString[80]; // general output string, 80 bytes
+
+char* longToString(long n){
+  ltoa(n, outputString, 10);    // base 10
+  return outputString;
+}
+char* integerToString(int n){   // returns outputString
+  itoa(n, outputString, 10);    // itoa is for integers, 10 is for base 10 (could use 2 for binary, 16 for hex)
+  return outputString;
+}
+char* integerToHex(uint32_t n){ // can be any sort of number, long, byte, uint8,16,32 etc
+  ltoa(n, outputString, 16);    // base 16 is binary, returns lower case A-F
+  return outputString;
 }
 
 //*********************************Serial functions************************************************//
@@ -298,6 +308,13 @@ void serialWriteString(const char* string){
     serialWriteChar(*ptr);
     ptr++;
   }
+}
+void serialWriteProgString(const char* ptr){
+  char c;
+  if (!ptr) 
+    return;
+  while ((c = pgm_read_byte(ptr++)))
+    serialWriteChar(c);
 }
 void serialBegin(){
   UBRR0H = (unsigned char)(CALC_UBRR>>8); //Set baud rate
@@ -335,7 +352,7 @@ byte receiveASKByte(){ //blocking
     long timeout = millis() + TIMEOUT;    
     while(!ask_driver.recv(buf, &buflen) && millis() < timeout){    // Non-blocking  
       if(debugOn){
-        Serial.print(".");
+        //Serial.print(".");
         _delay_ms(100);
       }
     }
@@ -417,8 +434,8 @@ void enableWatchdog(bool value){ //00 for disabled, 01 for 40s, 10 for 80s and 1
 
 //**********************************Print methods**********************************************//
 void printAllREG(){
-  Serial.println();
-  for(int i = 0; i < 50; i++) Serial.print("*");
+  serialWriteChar('\n');
+  for(int i = 0; i < 50; i++) serialWriteChar('*');
 
   printREGBinary(0x00);
   printREGBinary(0x01);
@@ -443,234 +460,302 @@ void printAllREG(){
   printREG12();
   printREG13();
   printREG14();
-  Serial.println();
-  for(int i = 0; i < 50; i++) Serial.print("*");
+  serialWriteChar('\n');
+  for(int i = 0; i < 50; i++) serialWriteChar('*');
 }
 
+const static char Register_[] PROGMEM = "Register ";
 void printREGBinary(byte address){
-  Serial.println();
+  serialWriteChar('\n');
   byte data = readRegister(address);
   byte mask = 0b10000000;
-  Serial.print(F("Register "));
-  Serial.print(address, HEX);
-  Serial.print(": ");
+  
+  serialWriteProgString(Register_);
+  serialWriteString("0x");
+  serialWriteString(integerToHex(address));
+  serialWriteString(": ");
   
   for(int i = 0; i<8; i++){
     if(((mask >> i) & data) == (mask>>i)){
-      Serial.print("1");
+      serialWriteChar("1");
     }else{
-      Serial.print("0");
+      serialWriteChar("0");
     }
   }
 }
 
+const static char Charger_Status_Message [] PROGMEM = "Charger status: ";
+const static char No_Charger_Message [] PROGMEM = "No charger";
+const static char USB_Host_SDP_Message [] PROGMEM = "USB Host SDP";
+const static char USB_CDP_Message [] PROGMEM = "USB CDP (1.5A)";
+const static char USB_DCP_Message [] PROGMEM = "USB DCP (3.25A)";
+const static char MaxCharge_Message [] PROGMEM = "Adjustable High Voltage DCP (MaxCharge) (1.5A)";
+const static char Unknown_Adapter_Message [] PROGMEM = "Unknown Adapter (500mA)";
+const static char Non_Standard_Adapter_Message [] PROGMEM = "Non-Standard Adapter (1A/2A/2.1A/2.4A)";
+const static char OTG_Mode_Message [] PROGMEM = "OTG mode";
+
+const static char Charging_Mode_Message [] PROGMEM = "Charging mode: ";
+const static char Not_Charging_Message [] PROGMEM = "Not Charging";
+const static char Pre_Charging_Message [] PROGMEM = "Pre-charge";
+const static char Fast_Charging_Message [] PROGMEM = "Fast Charging";
+const static char Charge_Termination_Done_Message [] PROGMEM = "Charge Termination Done";
+
+const static char Power_Status_Message [] PROGMEM = "Power status: ";
+const static char Error_Message [] PROGMEM = "Error";
+const static char Good_Message [] PROGMEM = "Good";
+
+const static char VSYS_Message [] PROGMEM = "VSYS Regulation Status: ";
+const static char No_VSYS_Reg_Message [] PROGMEM = "NOT in VSYSMIN regulation (BAT > VSYSMIN)";
+const static char VSYS_Good_Message [] PROGMEM = "Good (BAT < VSYSMIN)";
+
 void printREG0B(){
   byte data = readRegister(0x0B);
-  Serial.println();
+  serialWriteChar("\n");
+  
   //print charger information
-  Serial.print(F("Charger status: "));
+  serialWriteProgString(Charger_Status_Message);
+  
   byte charger = data >> 5;
-  if      (charger == 0) Serial.println(F("No charger"));
-  else if (charger == 1) Serial.println(F("USB Host SDP"));
-  else if (charger == 2) Serial.println(F("USB CDP (1.5A)"));
-  else if (charger == 3) Serial.println(F("USB DCP (3.25A)"));
-  else if (charger == 4) Serial.println(F("Adjustable High Voltage DCP (MaxCharge) (1.5A)"));
-  else if (charger == 5) Serial.println(F("Unknown Adapter (500mA)"));
-  else if (charger == 6) Serial.println(F("Non-Standard Adapter (1A/2A/2.1A/2.4A)"));
-  else if (charger == 7) Serial.println(F("OTG"));
+  if      (charger == 0) serialWriteProgString(No_Charger_Message);
+  else if (charger == 1) serialWriteProgString(USB_Host_SDP_Message);
+  else if (charger == 2) serialWriteProgString(USB_CDP_Message);
+  else if (charger == 3) serialWriteProgString(USB_DCP_Message);
+  else if (charger == 4) serialWriteProgString(MaxCharge_Message);
+  else if (charger == 5) serialWriteProgString(Unknown_Adapter_Message);
+  else if (charger == 6) serialWriteProgString(Non_Standard_Adapter_Message);
+  else if (charger == 7) serialWriteProgString(OTG_Mode_Message);
 
   //print charging status
-  Serial.print(F("Charging mode: "));
+  serialWriteProgString(Charging_Mode_Message);
   byte chargeStatus = data << 3;
   chargeStatus = chargeStatus >> 6;
-  if      (chargeStatus == 0) Serial.println(F("Not Charging"));
-  else if (chargeStatus == 1) Serial.println(F("Pre-charge"));
-  else if (chargeStatus == 2) Serial.println(F("Fast Charging"));
-  else if (chargeStatus == 3) Serial.println(F("Charge Termination Done"));
+  if      (chargeStatus == 0) serialWriteProgString(Not_Charging_Message);
+  else if (chargeStatus == 1) serialWriteProgString(Pre_Charging_Message);
+  else if (chargeStatus == 2) serialWriteProgString(Fast_Charging_Message);
+  else if (chargeStatus == 3) serialWriteProgString(Charge_Termination_Done_Message);
 
   //print power good
-  Serial.print(F("Power status: "));
+  serialWriteProgString(Power_Status_Message);
   byte powerStatus = data << 4;
   powerStatus = powerStatus >> 7;
-  if      (powerStatus == 0) Serial.println(F("Error"));
-  else if (powerStatus == 1) Serial.println(F("Good"));
+  if      (powerStatus == 0) serialWriteProgString(Error_Message);
+  else if (powerStatus == 1) serialWriteProgString(Good_Message);
 
   //print power good
-  Serial.print(F("VSYS Regulation Status: "));
+  serialWriteProgString(VSYS_Message);
   byte vsysStatus = data << 7;
   vsysStatus = vsysStatus >> 7;
-  if      (powerStatus == 0) Serial.println(F("NOT in VSYSMIN regulation (BAT > VSYSMIN)"));
-  else if (powerStatus == 1) Serial.println(F("Good (BAT < VSYSMIN)"));
+  if      (powerStatus == 0) serialWriteProgString(No_VSYS_Reg_Message);
+  else if (powerStatus == 1) serialWriteProgString(VSYS_Good_Message);
 }
 
+const static char Watchdog_Message [] PROGMEM = "Watchdog status: ";
+const static char Normal_Message [] PROGMEM = "Normal";
+const static char Timer_Expired_Message [] PROGMEM = "Timer expired";
+
+const static char Boost_Status_Message [] PROGMEM = "Boost status: ";
+const static char VBUS_Overloaded_Message [] PROGMEM = "VBUS overloaded in OTG, or VBUS OVP, or battery is too low in boost mode";
+
+const static char Input_Fault_Message [] PROGMEM = "Input fault";
+const static char Thermal_Shutdown_Message [] PROGMEM = "Thermal shutdown";
+const static char Charger_Safety_Message [] PROGMEM = "Charge safety timer expiration";
+
+const static char Battery_Status_Message [] PROGMEM = "Battery status: ";
+const static char Battery_Overvoltage_Message [] PROGMEM = "Battery over-voltage";
+
+const static char NTC_Status_Message [] PROGMEM = "NTC status: ";
+const static char TS_Warm_Message [] PROGMEM = "TS Warm";
+const static char TS_Cool_Message [] PROGMEM = "TS Cool";
+const static char TS_Cold_Message [] PROGMEM = "TS Cold";
+const static char TS_Hot_Message [] PROGMEM = "TS Hot";
 
 void printREG0C(){
   byte data = readRegister(0x0C);
-  Serial.println();
+  serialWriteChar("\n");
+  
   //print watchdog status
-  Serial.print(F("Watchdog status: "));
+  serialWriteProgString(Watchdog_Message);
   byte watchdog = data >> 7;
-  if      (watchdog == 0) Serial.println(F("Normal"));
-  else if (watchdog == 1) Serial.println(F("Timer expired"));
+  if      (watchdog == 0) serialWriteProgString(Normal_Message);
+  else if (watchdog == 1) serialWriteProgString(Timer_Expired_Message);
 
   //print boost status
-  Serial.print("Boost status: ");
+  serialWriteProgString(Boost_Status_Message);
   byte boost = data << 1;
   boost = boost >> 7;
-  if(boost == 0) Serial.println(F("Normal"));
-  else if (boost == 1) {
-    Serial.println(F("VBUS overloaded in OTG, or VBUS OVP, or battery is too low in boost mode"));
-    beep(2,10);
-  }
+  if      (boost == 0) serialWriteProgString(Normal_Message);
+  else if (boost == 1) serialWriteProgString(VBUS_Overloaded_Message);
 
   //print charger status
-  Serial.print(F("Charger status: "));
+  serialWriteProgString(Charger_Status_Message);
   byte charger = data << 2;
   charger = charger >> 6;
-  if      (charger == 0) Serial.println(F("Normal"));
-  else if (charger == 1) Serial.println(F("Input fault"));
-  else if (charger == 2) Serial.println(F("Thermal shutdown"));
-  else if (charger == 3) Serial.println(F("Charge safety timer expiration"));
+  if      (charger == 0) serialWriteProgString(Normal_Message);
+  else if (charger == 1) serialWriteProgString(Input_Fault_Message);
+  else if (charger == 2) serialWriteProgString(Thermal_Shutdown_Message);
+  else if (charger == 3) serialWriteProgString(Charger_Safety_Message);
 
   //print battery status
-  Serial.print(F("Battery status: "));
+  serialWriteProgString(Battery_Status_Message);
   byte battery = data << 4;
   battery = battery >> 7;
-  if      (battery == 0) Serial.println(F("Normal"));
-  else if (battery == 1) Serial.println(F("Battery over-voltage"));
+  if      (battery == 0) serialWriteProgString(Normal_Message);
+  else if (battery == 1) serialWriteProgString(Battery_Overvoltage_Message);
 
   //print temperature sensor status
-  Serial.print(F("NTC status: "));
+  serialWriteProgString(NTC_Status_Message);
   byte ntc = data << 5;
   ntc = ntc >> 5;
-  if      (ntc == 0) Serial.println(F("Normal"));
-  else if (ntc == 2) Serial.println(F("TS Warm"));
-  else if (ntc == 3) Serial.println(F("TS Cool"));
-  else if (ntc == 5) Serial.println(F("TS Cold"));
-  else if (ntc == 6) Serial.println(F("TS Hot")); 
+  if      (ntc == 0) serialWriteProgString(Normal_Message);
+  else if (ntc == 2) serialWriteProgString(TS_Warm_Message);
+  else if (ntc == 3) serialWriteProgString(TS_Cool_Message);
+  else if (ntc == 5) serialWriteProgString(TS_Cold_Message);
+  else if (ntc == 6) serialWriteProgString(TS_Hot_Message);
 }
 
+const static char VINDPM_Mode_Message [] PROGMEM = "VINDPM Mode: ";
+const static char VINDPM_Relative_Message [] PROGMEM = "Relative VINDPM Threshold";
+const static char VINDPM_Absolute_Message [] PROGMEM = "Absolute VINDPM Threshold";
+const static char VINDPM_Value_Message [] PROGMEM = "VINDPM value available but not implemented";
 
 void printREG0D(){
   byte data = readRegister(0x0D);
-  Serial.println();
+  serialWriteChar("\n");
   //print VINDPM status
-  Serial.print(F("VINDPM Mode: "));
+  serialWriteProgString(VINDPM_Mode_Message);
   byte mode = data >> 7;
-  if      (mode == 0) Serial.println(F("Relative VINDPM Threshold"));
-  else if (mode == 1) Serial.println(F("Absolute VINDPM Threshold"));
+  if      (mode == 0) serialWriteProgString(VINDPM_Relative_Message);
+  else if (mode == 1) serialWriteProgString(VINDPM_Absolute_Message);
 
   //print VINDPM value
-  Serial.println(F("VINDPM value available but not implemented"));
+  serialWriteProgString(VINDPM_Value_Message);
 }
 
+const static char Thermal_Status_Message [] PROGMEM = "Thermal status: ";
+const static char Thermal_Throttling_Message [] PROGMEM = "Thermal throttling";
+const static char BAT_Voltage_Message [] PROGMEM = "BAT voltage: ";
 
 void printREG0E(){
   byte data = readRegister(0x0E);
-  Serial.println();
+  serialWriteChar("\n");
   //print Thermal status
-  Serial.print(F("Thermal status: "));
+  serialWriteProgString(Thermal_Status_Message);
   byte thermal = data >> 7;
-  if      (thermal == 0) Serial.println(F("Normal"));
-  else if (thermal == 1) Serial.println(F("Thermal throttling"));
+  if      (thermal == 0) serialWriteProgString(Normal_Message);
+  else if (thermal == 1) serialWriteProgString(Thermal_Throttling_Message);
 
   //print Vbat voltage
-  Serial.print(F("BAT voltage: "));
+  serialWriteProgString(BAT_Voltage_Message);
   byte voltage = data << 1;
   voltage = voltage >> 1;
   int value = ((voltage & 0b01000000) >> 6) * 1280 + ((voltage & 0b00100000) >> 5) * 640 + ((voltage & 0b00010000) >> 4) * 320 
               + ((voltage & 0b00001000) >> 3) * 160 + ((voltage & 0b00000100) >> 2) * 80 + ((voltage & 0b00000010) >> 1) * 40
               + (voltage & 0b00000001) * 20 + 2304;
-  Serial.print(value);
-  Serial.println(F("mV"));
+  serialWriteString(integerToString(value));
+  serialWriteString("mV");
 }
 
-
+const static char SYS_Voltage_Message [] PROGMEM = "SYS voltage: ";
 void printREG0F(){
   byte voltage = readRegister(0x0F);
-  Serial.println();
+  serialWriteChar("\n");
 
   //print SYS voltage
-  Serial.print(F("SYS voltage: "));
+  serialWriteProgString(SYS_Voltage_Message);
   int value = ((voltage & 0b01000000) >> 6) * 1280 + ((voltage & 0b00100000) >> 5) * 640 + ((voltage & 0b00010000) >> 4) * 320 
               + ((voltage & 0b00001000) >> 3) * 160 + ((voltage & 0b00000100) >> 2) * 80 + ((voltage & 0b00000010) >> 1) * 40
               + (voltage & 0b00000001) * 20 + 2304;
-  Serial.print(value);
-  Serial.println(F("mV"));
+  serialWriteString(integerToString(value));
+  serialWriteString("mV");
 }
 
+const static char TS_VS_REGN_Message [] PROGMEM = "TS voltage vs REGN: ";
 void printREG10(){
   byte data = readRegister(0x10);
-  Serial.println();
+  serialWriteChar("\n");
 
   //print TS voltage percentage of REGN
   byte voltage = data << 1;
   voltage = voltage >> 1;
-  Serial.print(F("TS voltage vs REGN: "));
+  serialWriteProgString(TS_VS_REGN_Message);
   int value = ((voltage & 0b01000000) >> 6) * 2976 + ((voltage & 0b00100000) >> 5) * 1488 + ((voltage & 0b00010000) >> 4) * 744 
               + ((voltage & 0b00001000) >> 3) * 372 + ((voltage & 0b00000100) >> 2) * 186 + ((voltage & 0b00000010) >> 1) * 93
               + (voltage & 0b00000001) * 46 + 2100;
-  Serial.print( (float) value / 100);
-  Serial.println(F("%"));
+  float percentage = (float) value / 100;
+  //Use double to str this way:  dtostrf(floatVar, minStringWidthIncDecimalPoint, numVarsAfterDecimal, charBuf);
+  char buf[10];  
+  dtostrf(percentage, 6, 2, buf);
+  serialWriteString(buf);
+  serialWriteChar('%');
 }
 
+const static char VBUS_Voltage_Message [] PROGMEM = "VBUS voltage: ";
 void printREG11(){
   byte voltage = readRegister(0x11);
-  Serial.println();
+  serialWriteChar("\n");
 
   //print vbus voltage
-  Serial.print(F("VBUS voltage: "));
+  serialWriteProgString(VBUS_Voltage_Message);
   unsigned int value = ((voltage & 0b01000000) >> 6) * 6400 + ((voltage & 0b00100000) >> 5) * 3200 + ((voltage & 0b00010000) >> 4) * 1600 
               + ((voltage & 0b00001000) >> 3) * 800 + ((voltage & 0b00000100) >> 2) * 400 + ((voltage & 0b00000010) >> 1) * 200
               + (voltage & 0b00000001) * 100 + 2600;
-  Serial.print(value, DEC);
-  Serial.println(F("mV"));
+  serialWriteString(integerToString(value));
+  serialWriteString("mV");
 }
 
+const static char IBAT_Current_Message [] PROGMEM = "Charge current (Ibat): ";
 void printREG12(){
   byte current = readRegister(0x12);
-  Serial.println();
+  serialWriteChar("\n");
   
   //print charge current
-  Serial.print(F("Charge current (Ibat): "));
+  serialWriteProgString(IBAT_Current_Message);
   int value = ((current & 0b01000000) >> 6) * 3200 + ((current & 0b00100000) >> 5) * 1600 + ((current & 0b00010000) >> 4) * 800 
               + ((current & 0b00001000) >> 3) * 400 + ((current & 0b00000100) >> 2) * 200 + ((current & 0b00000010) >> 1) * 100
               + (current & 0b00000001) * 50;
-  Serial.print(value);
-  Serial.println(F("mA"));
+  serialWriteString(integerToString(value));
+  serialWriteString("mA");
 }
 
+const static char VINDPM_Message [] PROGMEM = "VINDPM: ";
+const static char IINDPM_Message [] PROGMEM = "IINDPM: ";
+const static char Input_Current_Limit_Message [] PROGMEM = "Input Current Limit (if ICO enabled): ";
+const static char Yes_Message [] PROGMEM = "Yes";
+const static char No_Message [] PROGMEM = "No";
 void printREG13(){
   byte data = readRegister(0x13);
-  Serial.println();
+  serialWriteChar("\n");
   //print VINDPM status
-  Serial.print(F("VINDPM: "));
+  serialWriteProgString(VINDPM_Message);
   byte vindpm = data >> 7;
-  if      (vindpm == 0) Serial.println(F("No"));
-  else if (vindpm == 1) Serial.println(F("Yes"));
+  if      (vindpm == 0) serialWriteProgString(No_Message);
+  else if (vindpm == 1) serialWriteProgString(Yes_Message);
 
-  Serial.print(F("IINDPM: "));
+  serialWriteProgString(IINDPM_Message);
   byte iindpm = data << 1;
   iindpm = iindpm >> 7;
-  if      (iindpm == 0) Serial.println(F("No"));
-  else if (iindpm == 1) Serial.println(F("Yes"));
+  if      (iindpm == 0) serialWriteProgString(No_Message);
+  else if (iindpm == 1) serialWriteProgString(Yes_Message);
 
   //print input current limit
-  Serial.print(F("Input Current Limit (if ICO enabled): "));
+  serialWriteProgString(Input_Current_Limit_Message);
   byte current = data;
   int value = ((current & 0b00100000) >> 5) * 1600 + ((current & 0b00010000) >> 4) * 800 + ((current & 0b00001000) >> 3) * 400
               + ((current & 0b00000100) >> 2) * 200 + ((current & 0b00000010) >> 1) * 100 + (current & 0b00000001) * 50 + 100;
-  Serial.print(value);
-  Serial.println(F("mA"));
+  serialWriteString(integerToString(value));
+  serialWriteString("mA");
 }
 
+const static char ICO_Message [] PROGMEM = "ICO status: ";
+const static char Optimizing_Message [] PROGMEM = "Optimizing...";
+const static char Max_Current_Message [] PROGMEM = "Max current detected";
 void printREG14(){
   byte data = readRegister(0x14);
-  Serial.println();
+  serialWriteChar("\n");
   //print ICO optimization status
-  Serial.print(F("ICO status: "));
+  serialWriteProgString(ICO_Message);
   byte ico = data << 1;
   ico = ico >> 7;
-  if      (ico == 0) Serial.println(F("Optimizing..."));
-  else if (ico == 1) Serial.println(F("Max current detected"));
+  if      (ico == 0) serialWriteProgString(Optimizing_Message);
+  else if (ico == 1) serialWriteProgString(Max_Current_Message);
 }

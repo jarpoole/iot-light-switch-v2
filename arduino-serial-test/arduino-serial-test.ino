@@ -1,6 +1,7 @@
 
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/pgmspace.h>
 
 #define F_CPU 8000000UL  // 8 MHz oscillator.
 #define BaudRate 9600
@@ -32,6 +33,14 @@ void serialWriteString(const char* string){
   }
 }
 
+void serialWriteProgString(const char* ptr){
+  char c;
+  if (!ptr) 
+    return;
+  while ((c = pgm_read_byte(ptr++)))
+    serialWriteChar(c);
+}
+
 void serialBegin(){
   /*Set baud rate */
   UBRR0H = (unsigned char)(CALC_UBRR>>8);
@@ -49,10 +58,13 @@ void serialBegin(){
 
 int main (void){
     serialBegin();
+
+    
+    //const static char out[] PROGMEM = "A";
     
     while(1){
-        //serialWriteChar('A');
-        serialWriteString("Hello\n");
+        //serialWriteChar("Hello, my name is Jared  and I like the color blue\n");
+        serialWriteProgString(out);
         _delay_ms(1000);
     }
  
