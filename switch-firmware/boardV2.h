@@ -15,11 +15,15 @@
 #define CALC_UBRR (F_CPU / 8 / BaudRate ) - 1
 
 //BMS Constants
-#define BMS_ADDRESS 0x6A
 #define BMS_INTERRUPT 2  //PD2, INT0
 #define BMS_OTG A3       //PC3
 #define BMS_CE A2        //PC2
 #define BMS_QON A1       //PC1
+//I2C Slave Address: 6AH (1101010B + R/W) (bq25890)
+//For read:  0b11010101  -> 0xD5
+//For write: 0b11010100  -> 0xD4
+#define BMS_READ_ADDR 0xD5
+#define BMS_WRITE_ADDR 0xD4
 
 //Servo Constants
 #define SERVO 9          //PB1

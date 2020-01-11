@@ -21,7 +21,6 @@
 
 #include "./pwmservo-atmega328p/PWMServo.h"
 #include "./pwmservo-atmega328p/PWMServo.cpp"
-#include <Wire.h>
 
 //From documentation: RH_ASK (uint16_t speed=2000, uint8_t rxPin=11, uint8_t txPin=12, uint8_t pttPin=10, bool pttInverted=false)
 //pttPin = -1 will disable push to talk functionality
@@ -43,24 +42,22 @@ volatile bool requestSwitchOff = false;
 volatile bool requestSerialOn = false;
 volatile bool requestSerialOff = false;
 
-const static char NEWLINE[] PROGMEM = "\n";
-
 int main (void){
    
-  
   initialize();
-
-  //pinMode(BUZZER, OUTPUT);
-  //beep(1,1000);
   
   while(true){
     beep(1,10);
-    serialWriteString("1");
+    //serialWriteString("1");
+    printAllREG();
+    
+    //printREGBinary(0x00);
+    
+    //printREG10();
+    
     _delay_ms(1000);
     //sleep();
   }
-  
-  
   
   /*
   while(true){
@@ -106,38 +103,29 @@ void initialize() {
   pinMode(SERVO_ENABLE, OUTPUT);
   digitalWrite(SERVO_ENABLE, LOW);
 
- 
   //***************************Initialize Radio***************************//
   pinMode(TRANSMITTER, OUTPUT);
   pinMode(RECEIVER, INPUT);
   ask_driver.init();
-
-  
   
   //***************************Initialize BMS***************************//
-  
-  Wire.begin();
-  pinMode(BMS_INTERRUPT,INPUT);
+  twiBegin();                         //*********************FIX ME (twi shouldn't be on by default?)**********************
+  pinMode(BMS_INTERRUPT, INPUT);
   attachInterrupt(digitalPinToInterrupt(BMS_INTERRUPT), bmsISR, RISING);
   pinMode(BMS_OTG, OUTPUT);
   digitalWrite(BMS_OTG, HIGH);        //*********************FIX ME (OTG shouldn't be on by default)**********************
 
-  
-  //setOTG_CONFIG(true);    //enable boost mode
-  //setCHG_CONFIG(false);   //Disable charging
-  //setCONV_RATE(true);     //enable continuous ADC for testing
-  //enableWatchdog(false);  //Disable watchdog
-  writeRegister(0x0A, 0x77); //Set BOOST_LIM value to 111 = 2.45A
- 
-  
+  setOTG_CONFIG(true);    //enable boost mode
+  setCHG_CONFIG(false);   //Disable charging
+  setCONV_RATE(true);     //enable continuous ADC for testing
+  enableWatchdog(false);  //Disable watchdog
+  twiWriteRegister(0x0A, 0x77); //Set BOOST_LIM value to 111 = 2.45A
 
   initializeTimer2Sleep();
   SMCR|=(1<<SM1)|(1<<SM0); //Set sleep mode control register to PowerSave Mode (Bits SM2 SM1 SM0 = 011 , p38)
   sei();   //Enable global interrupts
-
-  //setSTAT_DIS(true);
   
-
+  setSTAT_DIS(false);
 }
 
 void initializeTimer2Sleep(){
@@ -248,13 +236,13 @@ void turnOff(){
   servo.detach();
   switchOn = false;
 }
-const static char Enable_Serial_Message [] PROGMEM = "Serial enabled";
+const static char Enable_Serial_Message [] PROGMEM = "Serial enabled\n";
 void enableSerial(){
   serialBegin();
   serialWriteProgString(Enable_Serial_Message);
   debugOn = true;
 }
-const static char Disable_Serial_Message [] PROGMEM = "Goodbye";
+const static char Disable_Serial_Message [] PROGMEM = "Goodbye\n";
 void disableSerial(){
   serialWriteProgString(Disable_Serial_Message);
   //Serial.end();
@@ -375,68 +363,105 @@ byte checkASKByte(){
     }
 }
 
-//*********************************BMS functions****************************************//
-byte readRegister(byte address){
-  Wire.beginTransmission(BMS_ADDRESS);
-  Wire.write(address);
-  Wire.endTransmission();
-  
-  Wire.requestFrom(BMS_ADDRESS, 1);
-  while(Wire.available()>1);
-  
-  return(Wire.read());
+//*********************************twi functions****************************************//
+uint8_t twiReadRegister(uint8_t address){
+    twiStart();
+    twiWrite(BMS_WRITE_ADDR);  //Select BMS in write mode
+    twiWrite(address);       //Select register
+    twiStart();
+    twiWrite(BMS_READ_ADDR);  //Select BMS in read mode
+    uint8_t data = twiReadACK();
+    twiStop();
+    return data;
 }
-void writeRegister(byte address, byte value){
-  Wire.beginTransmission(BMS_ADDRESS);
-  Wire.write(address);
-  Wire.write(value);
-  Wire.endTransmission();
+void twiWriteRegister(uint8_t address, uint8_t data){
+    twiStart();
+    twiWrite(BMS_WRITE_ADDR);  //Select BMS in write mode
+    twiWrite(address);         //Select register
+    twiWrite(data);            //Write data 
+    twiStop();
+}
+void twiBegin(){
+    //SCL_FREQ = F_CPU / (16+2*TWBR*PreScale), if we want SCL 100kHz  then TWSR*TWBR = 32
+    PRR &= ~(1<<PRTWI); //Enable TWI clock from sleep
+    TWSR = 0x00;        //Don't need prescaler so set to 1
+    TWBR = 0x20;        //Set TWBR=32(dec), should set SCL to 100kHz
+    TWCR = (1<<TWEN);   //enable TWI
+}
+void twiEnd(){
+    TWCR &= ~(1<<TWEN); //Disable TWI
+    PRR |= (1<<PRTWI);  //Disable TWI clock for sleep
+}
+void twiStart(){
+    TWCR = (1<<TWINT)|(1<<TWSTA)|(1<<TWEN);
+    while ((TWCR & (1<<TWINT)) == 0);
+}
+void twiStop(){
+    TWCR = (1<<TWINT)|(1<<TWSTO)|(1<<TWEN);
+}
+void twiWrite(uint8_t u8data){
+    TWDR = u8data;
+    TWCR = (1<<TWINT)|(1<<TWEN);
+    while ((TWCR & (1<<TWINT)) == 0);
+}
+uint8_t twiReadACK(){ 
+    TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+    while ((TWCR & (1<<TWINT)) == 0);
+    return TWDR;
+}
+uint8_t twiReadNACK(){
+    TWCR = (1<<TWINT)|(1<<TWEN);
+    while ((TWCR & (1<<TWINT)) == 0);
+    return TWDR;
+}
+uint8_t twiGetStatus(){
+    uint8_t statusByte;
+    statusByte = TWSR & 0xF8; //mask status
+    return statusByte;
 }
 
-void writeRegisterBit(byte address, int pos, bool value){
-  byte currentData = readRegister(address);         //Read the current state
+void twiWriteRegisterBit(byte address, int pos, bool value){
+  byte currentData = twiReadRegister(address);         //Read the current state
   currentData = bitWrite(currentData, pos, value);  //Change the specified bit
-  writeRegister(address, currentData);              //Write the changes
+  twiWriteRegister(address, currentData);              //Write the changes
 }
 
+//*********************************BMS functions****************************************//
 void setCONV_RATE(bool value){ //Configure continuous ADC updates = TRUE, one shot mode = FALSE
-  writeRegisterBit(0x02, 6, value);
+  twiWriteRegisterBit(0x02, 6, value);
 }
 void setOTG_CONFIG(bool value){
-  writeRegisterBit(0x03, 5, value);
+  twiWriteRegisterBit(0x03, 5, value);
 }
 void setCHG_CONFIG(bool value){
-  writeRegisterBit(0x03, 4, value);
+  twiWriteRegisterBit(0x03, 4, value);
 }
 void setSTAT_DIS(bool value){
-  writeRegisterBit(0x07, 6, value);
+  twiWriteRegisterBit(0x07, 6, value);
 }
 void setWD_RST(bool value){
-  writeRegisterBit(0x03, 6, value);
+  twiWriteRegisterBit(0x03, 6, value);
 }
-
-
 void enableWatchdog(bool value){ //00 for disabled, 01 for 40s, 10 for 80s and 11 for 160s
   int bit5;
   int bit4;
-  if(value){ 
-     bit5 = 0;
-     bit4 = 1;
-  }else{
-    bit5 = 0;
-    bit4 = 0;
-  }
-  byte currentData = readRegister(0x07);         
+  if(value){ bit5 = 0; bit4 = 1; }
+  else{      bit5 = 0; bit4 = 0; }
+  byte currentData = twiReadRegister(0x07);         
   currentData = bitWrite(currentData, 5, bit5);  
   currentData = bitWrite(currentData, 4, bit4); 
-  writeRegister(0x07, currentData);
+  twiWriteRegister(0x07, currentData);
 }
 
 //**********************************Print methods**********************************************//
 void printAllREG(){
+  /*
   serialWriteChar('\n');
   for(int i = 0; i < 50; i++) serialWriteChar('*');
+  serialWriteChar('\n');
+  */
 
+  /*
   printREGBinary(0x00);
   printREGBinary(0x01);
   printREGBinary(0x02);
@@ -448,26 +473,30 @@ void printAllREG(){
   printREGBinary(0x08);
   printREGBinary(0x09);
   printREGBinary(0x0A);
+  */
 
   //Registers 0B to 14 are primarily read only,
   printREG0B();
-  printREG0C();
-  printREG0D();
-  printREG0E();
-  printREG0F();
-  printREG10();
-  printREG11();
-  printREG12();
-  printREG13();
-  printREG14();
+  //printREG0C(); //not working alone
+  //printREG0D(); //not working alone
+  //printREG0E();
+  //printREG0F();
+  //printREG10();
+  //printREG11();
+  //printREG12();
+  //printREG13();
+  //printREG14();
+
+  /*
   serialWriteChar('\n');
   for(int i = 0; i < 50; i++) serialWriteChar('*');
+  serialWriteChar('\n');
+  */
 }
 
 const static char Register_[] PROGMEM = "Register ";
 void printREGBinary(byte address){
-  serialWriteChar('\n');
-  byte data = readRegister(address);
+  byte data = twiReadRegister(address);
   byte mask = 0b10000000;
   
   serialWriteProgString(Register_);
@@ -477,11 +506,12 @@ void printREGBinary(byte address){
   
   for(int i = 0; i<8; i++){
     if(((mask >> i) & data) == (mask>>i)){
-      serialWriteChar("1");
+      serialWriteChar('1');
     }else{
-      serialWriteChar("0");
+      serialWriteChar('0');
     }
   }
+  serialWriteChar('\n');
 }
 
 const static char Charger_Status_Message [] PROGMEM = "Charger status: ";
@@ -509,8 +539,7 @@ const static char No_VSYS_Reg_Message [] PROGMEM = "NOT in VSYSMIN regulation (B
 const static char VSYS_Good_Message [] PROGMEM = "Good (BAT < VSYSMIN)";
 
 void printREG0B(){
-  byte data = readRegister(0x0B);
-  serialWriteChar("\n");
+  byte data = twiReadRegister(0x0B);
   
   //print charger information
   serialWriteProgString(Charger_Status_Message);
@@ -524,6 +553,7 @@ void printREG0B(){
   else if (charger == 5) serialWriteProgString(Unknown_Adapter_Message);
   else if (charger == 6) serialWriteProgString(Non_Standard_Adapter_Message);
   else if (charger == 7) serialWriteProgString(OTG_Mode_Message);
+  serialWriteChar('\n');
 
   //print charging status
   serialWriteProgString(Charging_Mode_Message);
@@ -533,6 +563,7 @@ void printREG0B(){
   else if (chargeStatus == 1) serialWriteProgString(Pre_Charging_Message);
   else if (chargeStatus == 2) serialWriteProgString(Fast_Charging_Message);
   else if (chargeStatus == 3) serialWriteProgString(Charge_Termination_Done_Message);
+  serialWriteChar('\n');
 
   //print power good
   serialWriteProgString(Power_Status_Message);
@@ -540,6 +571,7 @@ void printREG0B(){
   powerStatus = powerStatus >> 7;
   if      (powerStatus == 0) serialWriteProgString(Error_Message);
   else if (powerStatus == 1) serialWriteProgString(Good_Message);
+  serialWriteChar('\n');
 
   //print power good
   serialWriteProgString(VSYS_Message);
@@ -547,6 +579,9 @@ void printREG0B(){
   vsysStatus = vsysStatus >> 7;
   if      (powerStatus == 0) serialWriteProgString(No_VSYS_Reg_Message);
   else if (powerStatus == 1) serialWriteProgString(VSYS_Good_Message);
+  serialWriteChar('\n');
+  
+  serialWriteChar('\n');
 }
 
 const static char Watchdog_Message [] PROGMEM = "Watchdog status: ";
@@ -570,14 +605,14 @@ const static char TS_Cold_Message [] PROGMEM = "TS Cold";
 const static char TS_Hot_Message [] PROGMEM = "TS Hot";
 
 void printREG0C(){
-  byte data = readRegister(0x0C);
-  serialWriteChar("\n");
+  byte data = twiReadRegister(0x0C);
   
   //print watchdog status
   serialWriteProgString(Watchdog_Message);
   byte watchdog = data >> 7;
   if      (watchdog == 0) serialWriteProgString(Normal_Message);
   else if (watchdog == 1) serialWriteProgString(Timer_Expired_Message);
+  serialWriteChar('\n');
 
   //print boost status
   serialWriteProgString(Boost_Status_Message);
@@ -585,6 +620,7 @@ void printREG0C(){
   boost = boost >> 7;
   if      (boost == 0) serialWriteProgString(Normal_Message);
   else if (boost == 1) serialWriteProgString(VBUS_Overloaded_Message);
+  serialWriteChar('\n');
 
   //print charger status
   serialWriteProgString(Charger_Status_Message);
@@ -594,6 +630,7 @@ void printREG0C(){
   else if (charger == 1) serialWriteProgString(Input_Fault_Message);
   else if (charger == 2) serialWriteProgString(Thermal_Shutdown_Message);
   else if (charger == 3) serialWriteProgString(Charger_Safety_Message);
+  serialWriteChar('\n');
 
   //print battery status
   serialWriteProgString(Battery_Status_Message);
@@ -601,6 +638,7 @@ void printREG0C(){
   battery = battery >> 7;
   if      (battery == 0) serialWriteProgString(Normal_Message);
   else if (battery == 1) serialWriteProgString(Battery_Overvoltage_Message);
+  serialWriteChar('\n');
 
   //print temperature sensor status
   serialWriteProgString(NTC_Status_Message);
@@ -611,6 +649,9 @@ void printREG0C(){
   else if (ntc == 3) serialWriteProgString(TS_Cool_Message);
   else if (ntc == 5) serialWriteProgString(TS_Cold_Message);
   else if (ntc == 6) serialWriteProgString(TS_Hot_Message);
+  serialWriteChar('\n');
+  
+  serialWriteChar('\n');
 }
 
 const static char VINDPM_Mode_Message [] PROGMEM = "VINDPM Mode: ";
@@ -619,16 +660,19 @@ const static char VINDPM_Absolute_Message [] PROGMEM = "Absolute VINDPM Threshol
 const static char VINDPM_Value_Message [] PROGMEM = "VINDPM value available but not implemented";
 
 void printREG0D(){
-  byte data = readRegister(0x0D);
-  serialWriteChar("\n");
+  byte data = twiReadRegister(0x0D);
+  
   //print VINDPM status
   serialWriteProgString(VINDPM_Mode_Message);
   byte mode = data >> 7;
   if      (mode == 0) serialWriteProgString(VINDPM_Relative_Message);
   else if (mode == 1) serialWriteProgString(VINDPM_Absolute_Message);
+  serialWriteChar('\n');
 
   //print VINDPM value
   serialWriteProgString(VINDPM_Value_Message);
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
 
 const static char Thermal_Status_Message [] PROGMEM = "Thermal status: ";
@@ -636,13 +680,14 @@ const static char Thermal_Throttling_Message [] PROGMEM = "Thermal throttling";
 const static char BAT_Voltage_Message [] PROGMEM = "BAT voltage: ";
 
 void printREG0E(){
-  byte data = readRegister(0x0E);
-  serialWriteChar("\n");
+  byte data = twiReadRegister(0x0E);
+
   //print Thermal status
   serialWriteProgString(Thermal_Status_Message);
   byte thermal = data >> 7;
   if      (thermal == 0) serialWriteProgString(Normal_Message);
   else if (thermal == 1) serialWriteProgString(Thermal_Throttling_Message);
+  serialWriteChar('\n');
 
   //print Vbat voltage
   serialWriteProgString(BAT_Voltage_Message);
@@ -653,12 +698,14 @@ void printREG0E(){
               + (voltage & 0b00000001) * 20 + 2304;
   serialWriteString(integerToString(value));
   serialWriteString("mV");
+  serialWriteChar('\n');
+
+  serialWriteChar('\n');
 }
 
 const static char SYS_Voltage_Message [] PROGMEM = "SYS voltage: ";
 void printREG0F(){
-  byte voltage = readRegister(0x0F);
-  serialWriteChar("\n");
+  byte voltage = twiReadRegister(0x0F);
 
   //print SYS voltage
   serialWriteProgString(SYS_Voltage_Message);
@@ -667,13 +714,14 @@ void printREG0F(){
               + (voltage & 0b00000001) * 20 + 2304;
   serialWriteString(integerToString(value));
   serialWriteString("mV");
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
 
 const static char TS_VS_REGN_Message [] PROGMEM = "TS voltage vs REGN: ";
 void printREG10(){
-  byte data = readRegister(0x10);
-  serialWriteChar("\n");
-
+  byte data = twiReadRegister(0x10);
+  
   //print TS voltage percentage of REGN
   byte voltage = data << 1;
   voltage = voltage >> 1;
@@ -687,13 +735,14 @@ void printREG10(){
   dtostrf(percentage, 6, 2, buf);
   serialWriteString(buf);
   serialWriteChar('%');
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
 
 const static char VBUS_Voltage_Message [] PROGMEM = "VBUS voltage: ";
 void printREG11(){
-  byte voltage = readRegister(0x11);
-  serialWriteChar("\n");
-
+  byte voltage = twiReadRegister(0x11);
+  
   //print vbus voltage
   serialWriteProgString(VBUS_Voltage_Message);
   unsigned int value = ((voltage & 0b01000000) >> 6) * 6400 + ((voltage & 0b00100000) >> 5) * 3200 + ((voltage & 0b00010000) >> 4) * 1600 
@@ -701,12 +750,13 @@ void printREG11(){
               + (voltage & 0b00000001) * 100 + 2600;
   serialWriteString(integerToString(value));
   serialWriteString("mV");
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
 
 const static char IBAT_Current_Message [] PROGMEM = "Charge current (Ibat): ";
 void printREG12(){
-  byte current = readRegister(0x12);
-  serialWriteChar("\n");
+  byte current = twiReadRegister(0x12);
   
   //print charge current
   serialWriteProgString(IBAT_Current_Message);
@@ -715,6 +765,8 @@ void printREG12(){
               + (current & 0b00000001) * 50;
   serialWriteString(integerToString(value));
   serialWriteString("mA");
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
 
 const static char VINDPM_Message [] PROGMEM = "VINDPM: ";
@@ -723,19 +775,21 @@ const static char Input_Current_Limit_Message [] PROGMEM = "Input Current Limit 
 const static char Yes_Message [] PROGMEM = "Yes";
 const static char No_Message [] PROGMEM = "No";
 void printREG13(){
-  byte data = readRegister(0x13);
-  serialWriteChar("\n");
+  byte data = twiReadRegister(0x13);
+
   //print VINDPM status
   serialWriteProgString(VINDPM_Message);
   byte vindpm = data >> 7;
   if      (vindpm == 0) serialWriteProgString(No_Message);
   else if (vindpm == 1) serialWriteProgString(Yes_Message);
+  serialWriteChar('\n');
 
   serialWriteProgString(IINDPM_Message);
   byte iindpm = data << 1;
   iindpm = iindpm >> 7;
   if      (iindpm == 0) serialWriteProgString(No_Message);
   else if (iindpm == 1) serialWriteProgString(Yes_Message);
+  serialWriteChar('\n');
 
   //print input current limit
   serialWriteProgString(Input_Current_Limit_Message);
@@ -744,18 +798,22 @@ void printREG13(){
               + ((current & 0b00000100) >> 2) * 200 + ((current & 0b00000010) >> 1) * 100 + (current & 0b00000001) * 50 + 100;
   serialWriteString(integerToString(value));
   serialWriteString("mA");
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
 
 const static char ICO_Message [] PROGMEM = "ICO status: ";
 const static char Optimizing_Message [] PROGMEM = "Optimizing...";
 const static char Max_Current_Message [] PROGMEM = "Max current detected";
 void printREG14(){
-  byte data = readRegister(0x14);
-  serialWriteChar("\n");
+  byte data = twiReadRegister(0x14);
+
   //print ICO optimization status
   serialWriteProgString(ICO_Message);
   byte ico = data << 1;
   ico = ico >> 7;
   if      (ico == 0) serialWriteProgString(Optimizing_Message);
   else if (ico == 1) serialWriteProgString(Max_Current_Message);
+  serialWriteChar('\n');
+  serialWriteChar('\n');
 }
