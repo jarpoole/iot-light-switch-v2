@@ -11,8 +11,10 @@
 #define VAR_RESISTOR A7  //PE3, ADC7
 
 //Serial Constants
-#define BaudRate 9600
-#define CALC_UBRR (F_CPU / 8 / BaudRate ) - 1
+#define BaudRate 38400
+#define CALC_UBRR (F_CPU / (16 * BaudRate)) - 1  //Disable 2x mode
+//#define CALC_UBRR (F_CPU / (8 * BaudRate)) - 1  //Requires 2x mode
+//#define CALC_UBRR 12  //38.4k
 
 //BMS Constants
 #define BMS_INTERRUPT 2  //PD2, INT0
@@ -24,12 +26,11 @@
 //For write: 0b11010100  -> 0xD4
 #define BMS_READ_ADDR 0xD5
 #define BMS_WRITE_ADDR 0xD4
+#define BMS_OTG_TIME 100 //Turn-on time
 
 //Servo Constants
 #define SERVO 9          //PB1
 #define SERVO_ENABLE 8   //PB0
-#define ONPOSITION 75    //Confirmed
-#define OFFPOSITION 120  //115
-#define OVERSHOOT 10     //30
-#define OVERSHOOT_TIME 100
-#define MOVE_TIME 200
+#define ONPOSITION 70    //Confirmed 75
+#define OFFPOSITION 125  //115
+#define MOVE_TIME 500
