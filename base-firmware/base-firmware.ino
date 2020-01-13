@@ -25,8 +25,12 @@ int main(){
   
   while(true){
     while(receiveASKByte() != WAKE_UP);
+    Serial.println("wakeup");
     transmitASKByte(ACK);
 
+    transmit(SWITCH_TOGGLE);
+    Serial.println("toggle");
+    /*
     if(switchChanged){
       if(switchState){
         transmit(SWITCH_ON);
@@ -37,12 +41,14 @@ int main(){
     }else{
       transmit(NO_CHANGE);
     }
+    */
     transmit(SLEEP);
+    Serial.println("sleep");
   }
 }
 
 void initialize(){
-  Serial.begin(115200);    // Debugging only
+  Serial.begin(38400);    // Debugging only
   if (!ask_driver.init()){
     Serial.println("init failed");
   }
