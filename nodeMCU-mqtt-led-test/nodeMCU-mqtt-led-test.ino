@@ -8,11 +8,13 @@
 #include "Adafruit_MQTT_Client.h"
 
 // WiFi Sign-in information
-#define WLAN_SSID       "jPoole"
-#define WLAN_PASS       "Love4wifi!"
+//#define WLAN_SSID       "jPoole"
+//#define WLAN_PASS       "Love4wifi!"
+#define WLAN_SSID       "Zoo Guest"
+#define WLAN_PASS       "Zookeeper"
 
 // Adafruit IO Sign-in information
-#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVER      "jservices.site"
 #define AIO_SERVERPORT  1883
 #define AIO_USERNAME    "jPoole"
 #define AIO_KEY         "1a88698778da49bcbf8c3425bc5fb84f"
