@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang=\"en\">
+  <head>
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>
+    <title>jSwitch Configuration</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel ="icon" href ="favicon.png" type = "image/x-icon">
+
+  </head>
+  <body>
+    <div>
+        <img style="vertical-align:middle" src="logo.png" width=60>
+        <span class="title"> jSwitch </span>
+    </div>
+    <br>
+
+    <div><p>
+        Welcome to the jSwitch configuration portal. This page allows the user to change the admin login and password, WiFi network and password, and configure various device parameters
+    </div></p>
+    <br>
+    <form method="get" action="/config">
+        <button class ="configbutton" type="submit">Configure</button>
+    </form>
+
+    <div><p>
+        Real-time device status and debug information is also available by clicking the status button below
+    </div></p>
+    <br>
+    <form method="get" action="status.html">
+        <button class ="configbutton" type="submit">Status</button>
+    </form>
+
+  </body>
+</html>

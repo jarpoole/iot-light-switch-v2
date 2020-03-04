@@ -6,6 +6,7 @@
 #define BUTTON 3         //PD3, INT1
 #define LED 7            //PD7
 #define BUZZER 10        //PB2
+#define RF_ENABLE 4      //PD4
 #define TRANSMITTER 5    //PD5
 #define RECEIVER 6       //PD6
 #define VAR_RESISTOR A7  //PE3, ADC7

@@ -1,4 +1,4 @@
-#define TIMEOUT         10
+#define TIMEOUT         5000
 
 //Flow Control
 #define NACK            0xFF

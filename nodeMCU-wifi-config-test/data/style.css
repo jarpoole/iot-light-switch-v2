@@ -1,0 +1,54 @@
+
+
+html {
+    font-family: Arial;
+    display: inline-block;
+    margin: 0px auto;
+    text-align: center;
+}
+h1 {
+    color: #0F3376;
+    font-size: 50px;
+}
+p {
+    font-size: 20px;
+}
+div {
+    margin: auto;
+    word-wrap: break-word;
+    width: 70%;
+}
+
+.title {
+    font-size: 40px;
+    font-weight: bold;
+
+}
+
+.configbutton {
+    display: inline-block;
+    background-color: #008CBA;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    padding: 10px 40px;
+    text-decoration: none;
+    font-size: 24px;
+    margin: 2px;
+    cursor: pointer;
+}
+
+
+/*
+.button2 {
+    background-color: #f44336;
+}
+.units {
+    font-size: 1.2rem;
+}
+.sensor-labels {
+  font-size: 1.5rem;
+  vertical-align:middle;
+  padding-bottom: 15px;
+}
+*/

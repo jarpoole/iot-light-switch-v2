@@ -1,10 +1,11 @@
-#define TIMEOUT         5000
+#define TIMEOUT         100
+#define RETRANSMIT_TIME 1000
 
 //Flow Control
 #define NACK            0xFF
 #define ACK             0x01
 #define WAKE_UP         0x02   //Begin transmission
-#define SLEEP		        0x03   //End transmission
+#define SLEEP           0x03   //End transmission
 #define NO_CHANGE       0x04
 
 //Switch Control

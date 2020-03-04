@@ -1,21 +1,21 @@
-// This example uses an ESP32 Development Board
-// to connect to shiftr.io.
-//
-// You can check on your device after a successful
-// connection here: https://shiftr.io/try.
-//
-// by Joël Gähwiler
-// https://github.com/256dpi/arduino-mqtt
 
-//#include <WiFi.h>
 #include "ESP8266WiFi.h"
 #include <MQTT.h>
+#include <RH_ASK.h>
+
+#define F_CPU 8000000UL
 
 char ssid[] = "Zoo Guest";
 char pass[] = "Zookeeper";
-
 //char ssid[] = "jPoole";
 //char pass[] = "Love4wifi!";
+
+//ESP8266 PINS
+#define TRANSMITTER 2
+#define RECEIVER 0
+
+//RH_ASK driver(2000, RECEIVER, TRANSMITTER, -1, false);
+RH_ASK driver(500, RECEIVER, TRANSMITTER, -1, false);
 
 WiFiClient net;
 MQTTClient client;
@@ -44,10 +44,12 @@ void connect() {
 void messageReceived(String &topic, String &payload) {
   Serial.println("incoming: " + topic + " - " + payload);
   if(payload == "on"){
-    digitalWrite(15, HIGH);
+    //digitalWrite(15, HIGH);
+    transmit();
     Serial.println("Turning on");
   }else if(payload == "off"){
-    digitalWrite(15, LOW);
+    //digitalWrite(15, LOW);
+    transmit();
     Serial.println("Turning off");
   }
 }
@@ -57,6 +59,9 @@ void setup() {
   
   Serial.begin(115200);
   Serial.println("Started...");
+
+  if (!driver.init())
+    Serial.println("init failed");
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
@@ -87,4 +92,19 @@ void loop() {
     client.publish("/hello", "world");
   }
  */
+}
+
+void transmit(){
+    //Serial.println("0");
+    const uint8_t data[1] = {0x40}; //BEEP 
+    //const uint8_t data[1] = {0x12}; //Toggle switch
+    driver.send(&data[0], 1);
+    //Serial.println("1");
+    
+    driver.waitPacketSent();
+    //Serial.println("2");
+    
+    //_delay_ms(200);
+    delay(200); 
+    //Serial.println("3");
 }

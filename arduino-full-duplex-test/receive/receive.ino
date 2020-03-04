@@ -16,7 +16,7 @@ void setup()
 
 void loop()
 {
-    uint8_t buf[4];
+    uint8_t buf[12];
     uint8_t buflen = sizeof(buf);
     if (driver.recv(buf, &buflen)) // Non-blocking
     {
