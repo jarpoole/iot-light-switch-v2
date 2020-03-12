@@ -1,5 +1,5 @@
 #define TIMEOUT         100
-#define RETRANSMIT_TIME 1000
+#define RETRANSMIT_TIME 2000
 
 //Flow Control
 #define NACK            0xFF
