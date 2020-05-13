@@ -1,4 +1,4 @@
-jared#include <RH_ASK.h>
+#include <RH_ASK.h>
 #include <SPI.h> // Not actualy used but needed to compile
 
 #define TRANSMITTER 5

@@ -19,13 +19,14 @@ bool buttonState;
 
 void setup()
 {
+   
     Serial.begin(115200);    // Debugging only
     if (!driver.init())
          Serial.println("init failed");
 
     DDRB |= 0b00000001; //Enable PB0 (Pin 8) as output
     DDRD &= 0b11111101; //Enable PD2 (Pin 2) as input
-    
+
 }
 
 void loop(){
@@ -43,7 +44,8 @@ void loop(){
     */
 
     transmit();
-    _delay_ms(10); 
+    _delay_ms(1000); 
+    
 }
 
 void transmit(){

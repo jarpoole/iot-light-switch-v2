@@ -10,15 +10,14 @@
 //RH_ASK module PINS
 #define TRANSMITTER 2
 #define RECEIVER 0
-#define UserID "jaredpoole"
 
 //RH_ASK driver(2000, RECEIVER, TRANSMITTER, -1, false);
 RH_ASK ask_driver(500, RECEIVER, TRANSMITTER, -1, false);
 
 volatile long transmitTimer = 0;
 
-// Initial name of the Thing. Used e.g. as SSID of the own Access Point.
-const char thingName[] = "jSwitch";
+// Initial name of the Device. Used e.g. as SSID of the own Access Point.
+const char deviceName[] = "jSwitch";
 
 // Initial password to connect to the Thing, when it creates an own Access Point.
 const char wifiInitialApPassword[] = "password";
@@ -68,7 +67,7 @@ void setup()
   pinMode(CONFIG_PIN, FUNCTION_3); //Call Function0 to restore back to orginal state
   pinMode(STATUS_PIN, FUNCTION_3);
 
-  iotWebConf = new IotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword, CONFIG_VERSION);
+  iotWebConf = new IotWebConf(deviceName, &dnsServer, &server, wifiInitialApPassword, CONFIG_VERSION);
   separator1 = new IotWebConfSeparator("User Settings");
   userIDParam = new IotWebConfParameter("User ID", "stringParam", stringParamValue, STRING_LEN, "text", "e.g. jaredpoole");
   separator2 = new IotWebConfSeparator("Device Settings");
@@ -76,11 +75,11 @@ void setup()
 
   
   //Serial.begin(115200);
-  Serial.println();
-  Serial.println("Booting up...");
+  //Serial.println();
+  //Serial.println("Booting up...");
 
   if(!SPIFFS.begin()){
-    Serial.println("An Error has occurred while mounting SPIFFS");
+    //Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
   iotWebConf->setStatusPin(STATUS_PIN);
@@ -102,8 +101,9 @@ void setup()
   //server.onNotFound([](){ iotWebConf->handleNotFound(); });
 
   //RH_ASK
-  if (!ask_driver.init())
-    Serial.println("RH_ASK init failed");
+  if (!ask_driver.init()){
+    //Serial.println("RH_ASK init failed");
+  }
 
   //MQTT
   // Note: Local domain names (e.g. "Computer.local" on OSX) are not supported by Arduino.
@@ -112,7 +112,7 @@ void setup()
   client.onMessage(messageReceived);
   //connect();
   
-  Serial.println("Ready.");
+  //Serial.println("Ready.");
 }
 
 void loop()
@@ -123,15 +123,20 @@ void loop()
   //WebServer
   iotWebConf->doLoop();
 
+  
   //MQTT
   if (WiFi.status() == WL_CONNECTED){
     if (!client.connected()) { 
-      client.connect(UserID); 
+      client.connect(deviceName); 
       client.subscribe("light-switch/state");
     }
     client.loop();
-    //delay(10);  //fixes some issues with WiFi stability
+    delay(10);  //fixes some issues with WiFi stability
   }
+
+  //Refreshes external led
+  updateStatusLED();
+  
 }
 
 
@@ -198,18 +203,23 @@ boolean formValidator(){
   return valid;
 }
 void messageReceived(String &topic, String &payload) {
-  Serial.println("incoming: " + topic + " - " + payload);
+  //Serial.println("incoming: " + topic + " - " + payload);
   if(payload == "on"){
-    //digitalWrite(15, HIGH);
     requestSwitchOn = true;
-    Serial.println("Turning on");
+    //Serial.println("Turning on");
   }else if(payload == "off"){
-    //digitalWrite(15, LOW);
     requestSwitchOff = true;
-    Serial.println("Turning off");
+    //Serial.println("Turning off");
   }
 }
 
+void updateStatusLED(){
+  if(requestSwitchOn || requestSwitchOff || requestSwitchToggle || requestEnableSerial || requestDisableSerial || requestBeep || requestNewPollRate){
+    iotWebConf->blink(200, 50);
+  }else{
+    iotWebConf->stopCustomBlink();
+  }
+}
 
 void transmitASKByte(byte data){
     ask_driver.send(&data, 1);
