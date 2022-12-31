@@ -21,11 +21,23 @@ An internet-connected voice-controlled easy-to-use lightswitch controller.
 
 ![installed](./docs/installed.jpg)
 
+![render](./mechanical/light-switch/inside.png)
+
+![render](./docs/teardown.jpg)
+
 ## Light Switch
 
 ### Motherboard
 
-![render](./docs/render.jpg)
+![motherboard_populated](./electrical/light-switch-motherboard/populated1.jpg)
+
+![motherboard_3d_top](./electrical/light-switch-motherboard/3d-top.png)
+
+![motherboard_3d_bottom](./electrical/light-switch-motherboard/3d-bottom.png)
+
+![motherboard_pcb_top](./electrical/light-switch-motherboard/pcb-top.png)
+
+![motherboard_pcb_bottom](./electrical/light-switch-motherboard/pcb-bottom.png)
 
 ### Daughterboard
 

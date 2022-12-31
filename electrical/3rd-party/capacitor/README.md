@@ -1,4 +1,4 @@
-# 1000uF Electrolytic Capacitor
+# 1000uF 10x16.5mm Electrolytic Capacitor
 
 ## Render
 
