@@ -12,11 +12,18 @@ An internet-connected voice-controlled easy-to-use lightswitch controller.
 6. Side-by-side installation thanks to narrow width.
 7. Contact activation through subtle physical switch.
 
+## Limitations
+
+1. The low-energy 433Mhz radios I selected are not suitable for this project as they are extremely unreliable and require a complicated software state-machine to service. A better choice would have been something like the `NRF24L01+` which includes automatic retransmission, multicast and an extremely low power consumption in sleep. See [this](https://github.com/jarpoole/NRF24L01_driver) project for more.
+
+2. The `ESP8266` WiFi module is not powerful enough to act as a base station for multiple devices. Its single processing core is mostly preoccupied with handling the networking stack and cannot be blocked by user software for two long without connectivity problems. A more modern SoC like the `ESP32` would have been a much better choice.
+
 ## Subsystems
 
 - [Light Switch](#light-switch)
   - [Motherboard](#motherboard)
   - [Daughterboard](#daughterboard)
+  - [Actuator](#actuator)
 - [Base Station](#light-switch)
 
 ![installed](./docs/installed.jpg)
@@ -28,6 +35,13 @@ An internet-connected voice-controlled easy-to-use lightswitch controller.
 ## Light Switch
 
 ### Motherboard
+
+1. Low-energy 433Mhz radios
+2. Deep-sleep enabled by a 32768Hz oscillator and timer interrupt
+3. BMS built around the Texas Instruments BQ25890 buck-boost charge controller. Charges 3.7 Li-ion battery pack from 5v USB power (buck) and produces 5v system power from battery pack when in operation (boost)
+4. Audio feedback from a buzzer
+5. Integrated USB debug/serial output
+6. ICSP programming header
 
 ![motherboard_populated](./electrical/light-switch-motherboard/populated1.jpg)
 
@@ -52,7 +66,28 @@ The daughterboard has two roles
 
 ![daughterboard_pcb](./electrical/light-switch-daughterboard/pcb.png)
 
+### Actuator
+
+The actuator is compatible with both post-style and rocker-style switches. The slide engages with post-style while the vertial rocker engages the rocker-style.
+
+![case](./mechanical/light-switch/case.jpg)
+
+![carriage](./mechanical/light-switch/carriage.jpg)
+
+![carriage_holder](./mechanical/light-switch/carriage_holder.jpg)
+
+![assembled](./mechanical/light-switch/assembly.jpg)
+
 ## Base Station
+
+The base station's primary responsibility is to act as a bridge between the internet and the low-energy 433Mhz radio on the light-switch.
+
+1. WiFi connectivity using ESP8266
+2. Dual power-supply options
+   - Mini USB
+   - Terminal block 5V DC
+3. Integrated USB debug/serial output
+4. Captive portal configuration through a mobile browser
 
 ![case](./mechanical/base-station/assembly.jpg)
 
